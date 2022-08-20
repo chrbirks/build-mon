@@ -22,52 +22,69 @@ func main() {
 	// var m buildDirModel
 	// m = initialModel()
 	m := initialModel()
+
 	// p := tea.NewProgram(initialModel())
 	p := tea.NewProgram(m)
 	if err := p.Start(); err != nil {
 		fmt.Printf("Uh oh, there was an error: %v\n", err)
 		log.Fatal(err)
 	}
-	log.Printf(m.textInput.Value())
+
+	log.Printf(m.build_dir_input.Value())
 	// bd = m.getBuildDir()
 	bd = m.build_dir_val
-	log.Printf("m.val=%s", bd)
+	log.Printf("main::m.val=%s", bd)
 }
 
 type buildDirModel struct {
-	textInput     textinput.Model
-
-	state         string
-
+	build_dir_input  textinput.Model
 	build_dir_val string
+	user_input textinput.Model
 	user_val      string
 
-	err           error
+	synsh_files []string
+
+	// cursor int // Selection in table
+	// selected map[int]struct{} // Which build job is selected
+
+	conf_done bool
+	state     string
+
+	err error
 }
 
 // func (m buildDirModel) getBuildDir() string {
-// 	// return m.textInput.Value()
+// 	// return m.build_dir_input.Value()
 // 	return m.val
 // }
 
 func initialModel() buildDirModel {
-	ti := textinput.New()
-	ti.Placeholder = "/home/cbs/github/build_man/test"
-	ti.Focus()
-	// ti.CharLimit = 150
-	// ti.Width = 20
+	build_dir_ti := textinput.New()
+	build_dir_ti.Placeholder = "/home/cbs/github/build_man/test"
+	build_dir_ti.Focus()
+	// build_dir_ti.CharLimit = 150
+	// build_dir_ti.Width = 20
+
+	user_ti := textinput.New()
+	user_ti.Placeholder = "CBS"
+	user_ti.Focus()
 
 	return buildDirModel{
-		textInput:     ti,
-		build_dir_val: ti.Placeholder,
-		state:         "args_build_dir",
-		err:           nil,
+		build_dir_input:  build_dir_ti,
+		build_dir_val:    build_dir_ti.Placeholder,
+		user_input: user_ti,
+		user_val:         user_ti.Placeholder,
+		conf_done:        false,
+		state:            "build_dir",
+		// cursor:           int,
+		// selcted:          make(map[int]struct{}),
+		err:              nil,
 	}
 }
 
 // Init() ///////////////////////////////////////////////////////////////////////
 func (m buildDirModel) Init() tea.Cmd {
-	// cmd := m.textInput.Init()
+	// cmd := m.build_dir_input.Init()
 	textInputBlinkCmd := textinput.Blink
 	// return textinput.Blink
 	// return textInputBlinkCmd
@@ -78,9 +95,16 @@ func (m buildDirModel) Init() tea.Cmd {
 func (m buildDirModel) View() string {
 	s := &strings.Builder{}
 
-	if m.build_dir_val == nil {
+	// log.Printf("View::conf_done=%b", m.conf_done)
+
+	// s.WriteString("Build dir location: (ESC to quit)\n")
+	// s.WriteString(m.build_dir_input.View())
+
+	if m.conf_done == false {
 		// Configure application
 		s.WriteString(argsView(m))
+	} else if m.conf_done == true {
+		s.WriteString(monView(m))
 	} else {
 		s.WriteString("Unknown m.state: " + m.state)
 		// return fmt.Sprintf("Text selection: %s", m.val)
@@ -90,53 +114,57 @@ func (m buildDirModel) View() string {
 	return s.String()
 }
 
-func argsView(m buildDirModel) string {
-	return "TODO"
+func monView(m buildDirModel) string {
+	return "TODO: Monitor state" + ", " + m.build_dir_val + ", " + m.user_val
+}
 
-	if m.build_dir_var == nil {
+func argsView(m buildDirModel) string {
+	s := &strings.Builder{}
+
+	// log.Printf("argsView::m.state=%s", m.state)
+
+	if m.state == "build_dir" {
 		s.WriteString("Build dir location: (ESC to quit)\n")
-		s.WriteString(m.textInput.View())
-	}
-	if m.state == "args_build_dir" {
+		s.WriteString(m.build_dir_input.View())
+	} else if m.state == "build_user" {
 		// return fmt.Sprintf(
 		// 	"Build dir location: (ESC to quit)\n%s\n",
-		// 	m.textInput.View(),
+		// 	m.build_dir_input.View(),
 		// ) + "\n"
-		s.WriteString("Build dir location: (ESC to quit)\n")
-		s.WriteString(m.textInput.View())
-		// s.WriteString(fmt.Sprintf("args_build_dir=%s", m.build_dir_val))
-	} else if m.state == "args_user" {
 		s.WriteString("Build user: (ESC to quit)\n")
-		s.WriteString(m.textInput.View())
-		// b.WriteString(fmt.Sprintf("args_user=%s", m.user_val))
-	} else if m.state == "monitor" {
-		s.WriteString("TODO")
+		s.WriteString(m.user_input.View())
+		// s.WriteString(fmt.Sprintf("args_build_dir=%s", m.build_dir_val))
+		// } else {
+		// 	log.Fatal("FATAL: Unhandled state in argsView")
+		// 	s.WriteString("TODO")
 	}
 
+	return s.String()
 }
 
 // Update() /////////////////////////////////////////////////////////////////////
-func (m buildDirModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// func (m buildDirModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *buildDirModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			return m, tea.Quit
+		// case tea.KeyCtrlC, tea.KeyEsc:
+		// 	return m, tea.Quit
 		case tea.KeyEnter:
 			switch m.state {
-			case "args_build_dir":
-				// Store textInput value in model
-				m.build_dir_val = m.textInput.Value()
-				// log.Printf("val=%s", m.val)
+			case "build_dir":
+				// Store build_dir_input value in model
+				m.build_dir_val = m.build_dir_input.Value()
 				// Move to next input state
-				// m.state = "args_user"
-				m.state = "monitor" // TODO: Should be "args_user"
-			case "args_user":
-				m.user_val = m.textInput.Value()
+				m.state = "build_user"
+				// m.build_dir_input, cmd = m.build_dir_input.Update(msg)
+			case "build_user":
+				m.user_val = m.user_input.Value()
 				m.state = "monitor"
+				m.conf_done = true
+				// m.user_input, cmd = m.user_input.Update(msg)
 			}
 		}
 	case errMsg:
@@ -144,9 +172,85 @@ func (m buildDirModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.textInput, cmd = m.textInput.Update(msg)
+	// cmds = append(cmds, cmd)
+	// cmds = append(cmds, cmd)
+
+	tea.LogToFile("debug.log", "debug") // FIXME: Seems to log also send "log.Printf" to file with this command?
+
+	log.Printf("ConfUpdate::m.state=%s", m.state)
+	log.Printf("ConfUpdsate::m.build_dir_input.Value()=%s", m.build_dir_input.Value())
+	log.Printf("ConfUpdsate::m.user_input.Value()=%s", m.user_input.Value())
+
+
+	return m, cmd
+}
+
+func (m buildDirModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// switch msg.String() {
+		// case "up", "k":
+		// 	//
+		// }
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		}
+	case errMsg:
+		m.err = msg
+		return m, nil
+	}
+
+	// log.Printf("Update::m.conf_done=%b", m.conf_done)
+	// log.Printf("Update::m.state=%s", m.state)
+	if (m.conf_done == false) {
+		_, cmd = m.ConfUpdate(msg)
+		cmds = append(cmds, cmd)
+	} else {
+		// m, cmd = MonitorUpdate(msg)
+		// cmds = append(cmds, cmd)
+	}
+
+
+
+
+
+	// switch msg := msg.(type) {
+	// case tea.KeyMsg:
+	// 	switch msg.Type {
+	// 	case tea.KeyCtrlC, tea.KeyEsc:
+	// 		return m, tea.Quit
+	// 	case tea.KeyEnter:
+	// 		switch m.state {
+	// 		case "build_dir":
+	// 			// Store build_dir_input value in model
+	// 			m.build_dir_val = m.build_dir_input.Value()
+	// 			// log.Printf("val=%s", m.val)
+	// 			// Move to next input state
+	// 			// m.state = "args_user"
+	// 			m.state = "build_user"
+	// 		case "build_user":
+	// 			m.user_val = m.build_dir_input.Value()
+	// 			m.state = "monitor"
+	// 			m.conf_done = true
+	// 		}
+	// 	}
+	// case errMsg:
+	// 	m.err = msg
+	// 	return m, nil
+	// }
+
+
+
+	m.build_dir_input, cmd = m.build_dir_input.Update(msg)
+	cmds = append(cmds, cmd)
+	m.user_input, cmd = m.user_input.Update(msg)
 	cmds = append(cmds, cmd)
 
+	// return m, nil
 	// return m, cmd
 	return m, tea.Batch(cmds...)
 }
