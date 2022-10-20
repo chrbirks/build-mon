@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strings"
 	// "net/http"
-	// "os"
+	"os"
 	// "time"
 	// "os/exec"
+	// "io/ioutil"
+	"path/filepath"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"log"
@@ -19,7 +21,7 @@ type errMsg error
 
 func main() {
 	var bd string
-	// var m buildDirModel
+	// var m mainModel
 	// m = initialModel()
 	m := initialModel()
 
@@ -36,7 +38,7 @@ func main() {
 	log.Printf("main::m.val=%s", bd)
 }
 
-type buildDirModel struct {
+type mainModel struct {
 	build_dir_input  textinput.Model
 	build_dir_val string
 	user_input textinput.Model
@@ -53,14 +55,14 @@ type buildDirModel struct {
 	err error
 }
 
-// func (m buildDirModel) getBuildDir() string {
+// func (m mainModel) getBuildDir() string {
 // 	// return m.build_dir_input.Value()
 // 	return m.val
 // }
 
-func initialModel() buildDirModel {
+func initialModel() mainModel {
 	build_dir_ti := textinput.New()
-	build_dir_ti.Placeholder = "/home/cbs/github/build_man/test"
+	build_dir_ti.Placeholder = "/home/cbs/github/build-mon/test/FPGA"
 	build_dir_ti.Focus()
 	// build_dir_ti.CharLimit = 150
 	// build_dir_ti.Width = 20
@@ -69,30 +71,67 @@ func initialModel() buildDirModel {
 	user_ti.Placeholder = "CBS"
 	user_ti.Focus()
 
-	return buildDirModel{
+	return mainModel{
 		build_dir_input:  build_dir_ti,
 		build_dir_val:    build_dir_ti.Placeholder,
 		user_input: user_ti,
 		user_val:         user_ti.Placeholder,
-		conf_done:        false,
+		conf_done:        true, // Skipping conf until later version
 		state:            "build_dir",
+
+		// synsh_files:      []string{"abc", "def"},
+		// synsh_files:      getSynshFiles(),
 		// cursor:           int,
-		// selcted:          make(map[int]struct{}),
+		// selected:         make(map[string]struct{}),
+
 		err:              nil,
 	}
 }
 
+
+func (m mainModel) getSynshFiles() tea.Msg {
+	var files []string
+
+	err := filepath.Walk(m.build_dir_val, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Fatal(err)
+			return nil
+		}
+		if !info.IsDir() && filepath.Ext(path) == ".synsh" {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+
+	}
+
+	m.synsh_files = files
+	for _,file := range m.synsh_files {
+		log.Printf(file)
+	}
+
+	return 0
+}
+
+
 // Init() ///////////////////////////////////////////////////////////////////////
-func (m buildDirModel) Init() tea.Cmd {
-	// cmd := m.build_dir_input.Init()
-	textInputBlinkCmd := textinput.Blink
-	// return textinput.Blink
-	// return textInputBlinkCmd
-	return tea.Batch(textInputBlinkCmd)
+func (m mainModel) Init() tea.Cmd {
+
+	// // cmd := m.build_dir_input.Init()
+	// textInputBlinkCmd := textinput.Blink
+	// // return textinput.Blink
+	// // return textInputBlinkCmd
+	// return tea.Batch(textInputBlinkCmd)
+
+	return m.getSynshFiles
+
 }
 
 // View() /////////////////////////////////////////////////////////////////////
-func (m buildDirModel) View() string {
+func (m mainModel) View() string {
 	s := &strings.Builder{}
 
 	// log.Printf("View::conf_done=%b", m.conf_done)
@@ -114,11 +153,19 @@ func (m buildDirModel) View() string {
 	return s.String()
 }
 
-func monView(m buildDirModel) string {
-	return "TODO: Monitor state" + ", " + m.build_dir_val + ", " + m.user_val
+func monView(m mainModel) string {
+	s := &strings.Builder{}
+	s.WriteString("TODO: Monitor state\n")
+	s.WriteString("m.build_dir_val=" + m.build_dir_val + "\n")
+	for _, val := range m.synsh_files {
+		s.WriteString(val + "\n")
+	}
+
+	return s.String()
+	// return "TODO: Monitor state" + ", " + m.build_dir_val + ", " + m.user_val
 }
 
-func argsView(m buildDirModel) string {
+func argsView(m mainModel) string {
 	s := &strings.Builder{}
 
 	// log.Printf("argsView::m.state=%s", m.state)
@@ -143,8 +190,8 @@ func argsView(m buildDirModel) string {
 }
 
 // Update() /////////////////////////////////////////////////////////////////////
-// func (m buildDirModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-func (m *buildDirModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+// func (m mainModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *mainModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -185,7 +232,7 @@ func (m *buildDirModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m buildDirModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -212,6 +259,7 @@ func (m buildDirModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	} else {
 		// m, cmd = MonitorUpdate(msg)
 		// cmds = append(cmds, cmd)
+		msg = m.getSynshFiles()
 	}
 
 
