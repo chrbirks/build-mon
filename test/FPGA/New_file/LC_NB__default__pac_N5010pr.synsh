@@ -1,0 +1,7 @@
+#!/bin/bash
+#Start build on remote server
+cd sdk_scripts
+dirname=.
+rsh -n $server "cd $(readlink -f "${PWD}");  ENFORCE_COLOR=1  sdk_lc_included_afus='afu_example_pim dummy_afu_pim' sdk_lc_filelist='filelist_axi.txt' sdk_lc_platform_name=pac_N5010pr   sdk_lc_copy_to_rel_folder=1  ./build.sh --RunInDocker  --NightBuild --PrCompile --RemoveOldBackups ;" 
+echo 'Job returned:' $?
+sleep 60s
