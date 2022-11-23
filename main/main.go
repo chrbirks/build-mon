@@ -307,15 +307,23 @@ func (m mainModel) View() string {
 
 	log.Printf("[View::conf_done]: %b", m.conf_done)
 
+	// Print program header
+	s.WriteString("\n")
+	s.WriteString(lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("57")).
+		Background(lipgloss.Color("#7D56F4")).
+		PaddingLeft(3).
+		Width(24).
+		Render("FPGA Build Monitor"))
+	s.WriteString("\n\n")
+
 	// Print help text
 	helpView := m.help.View(m.keys)
-	height := 0 - strings.Count(s.String(), "\n") - strings.Count(helpView, "\n")
+	height := 3 - strings.Count(s.String(), "\n") - strings.Count(helpView, "\n")
 	s.WriteString(strings.Repeat("\n", height))
 	s.WriteString(helpView)
 	s.WriteString("\n")
-
-	// s.WriteString(m.helpStyle.Render("Hello"))
-	// s.WriteString("\n")
 
 	if m.conf_done == false {
 		// Configure application
