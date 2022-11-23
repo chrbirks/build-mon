@@ -18,11 +18,13 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
 
 type errMsg error
+const useHighPerformanceRenderer = false
 
 // keyMap defines a set of keybindings. To work for help it must satisfy
 // key.Map. It could also very easily be a map[string]key.Binding.
@@ -86,7 +88,8 @@ func main() {
 	m := initialModel()
 
 	// p := tea.NewProgram(initialModel())
-	p := tea.NewProgram(m)
+	// p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithAltScreen()) // use the full size of the terminal in its "alternate screen buffer"
 	// if model,err := p.Run(); err != nil {
 	if _,err := p.Run(); err != nil {
 		fmt.Printf("Uh oh, there was an error: %v\n", err)
@@ -107,6 +110,20 @@ type SynshFileStruct struct {
 	runTime time.Duration
 }
 
+var (
+	viewportHeaderStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Right = "├"
+		return lipgloss.NewStyle().BorderStyle(b).Padding(0, 1)
+	}()
+
+	viewportFooterStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Left = "┤"
+		return viewportHeaderStyle.Copy().BorderStyle(b)
+	}()
+)
+
 type mainModel struct {
 	build_dir_input  textinput.Model
 	build_dir_val string
@@ -123,6 +140,9 @@ type mainModel struct {
 	state     string
 
 	tbl table.Model
+
+	viewport viewport.Model
+	viewportReady bool
 
 	keys keyMap
 
@@ -198,6 +218,8 @@ func initialModel() mainModel {
 
 		// helpStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")),
 		help:      help.New(),
+
+		viewportReady: false,
 
 		err:              nil,
 	}
@@ -311,6 +333,23 @@ var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240"))
 
+func (m mainModel) viewportHeaderView() string {
+	title := viewportHeaderStyle.Render("Logfile")
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
+}
+
+func (m mainModel) viewportFooterView() string {
+	info := viewportFooterStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+}
+
+func max(a, b int) int {
+	if a > b {return a}
+	return b
+}
+
 func monView(m mainModel) string {
 	s := &strings.Builder{}
 
@@ -323,7 +362,14 @@ func monView(m mainModel) string {
 	// 	log.Printf("[monView]:" + val)
 	// }
 
+	// Render table
 	s.WriteString(baseStyle.Render(m.tbl.View()) + "\n")
+
+	// Render viewport
+	if !m.viewportReady {
+		return "\n  Initializing..."
+	}
+	s.WriteString(fmt.Sprintf("%s\n%s\n%s", m.viewportHeaderView(), m.viewport.View(), m.viewportFooterView()))
 
 	log.Printf("--------------------------\n")
 	return s.String()
@@ -387,6 +433,40 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If we set a width on the help menu it can it can gracefully truncate
 		// its view as needed.
 		m.help.Width = msg.Width
+
+		// Resize viewport
+		headerHeight := lipgloss.Height(m.viewportHeaderView())
+		footerHeight := lipgloss.Height(m.viewportFooterView())
+		verticalMarginHeight := headerHeight + footerHeight
+		if !m.viewportReady {
+			// Since this program is using the full size of the viewport we
+			// need to wait until we've received the window dimensions before
+			// we can initialize the viewport. The initial dimensions come in
+			// quickly, though asynchronously, which is why we wait for them
+			// here.
+			// m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
+			m.viewport = viewport.New(msg.Width, 3) // FIXME: Delete
+			m.viewport.YPosition = headerHeight
+			m.viewport.HighPerformanceRendering = useHighPerformanceRenderer
+			m.viewportReady = true
+
+			// This is only necessary for high performance rendering, which in
+			// most cases you won't need.
+			//
+			// Render the viewport one line below the header.
+			m.viewport.YPosition = headerHeight + 1
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = msg.Height - verticalMarginHeight
+		}
+
+		if useHighPerformanceRenderer {
+			// Render (or re-render) the whole viewport. Necessary both to
+			// initialize the viewport and when the window is resized.
+			//
+			// This is needed for high-performance rendering only.
+			cmds = append(cmds, viewport.Sync(m.viewport))
+		}
 	case tea.KeyMsg:
 		// switch msg.Type {
 		// case tea.KeyCtrlC, tea.KeyEsc:
@@ -436,6 +516,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.tbl.FromValues(s.String(), "\t")
 	m.tbl, cmd = m.tbl.Update(msg)
+	cmds = append(cmds, cmd)
+
+	// Update viewport contents
+	m.viewport.SetContent(m.tbl.SelectedRow()[0])
+
+	// Handle keyboard and mouse events in the viewport
+	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
