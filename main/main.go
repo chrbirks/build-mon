@@ -213,13 +213,12 @@ func (m *mainModel) getJobs() tea.Msg {
 			return nil
 		}
 		if !info.IsDir() && filepath.Ext(path) == ".synsh" {
-			// TODO: Rename tmp
-			tmp := SynshFileStruct{path, "N/A", time.Unix(0,0), time.Duration(0)}
-			tmp.file = path
+			job := SynshFileStruct{path, "N/A", time.Unix(0,0), time.Duration(0)}
+			job.file = path
 
 			// Create canonicalized job name from .synsh file without the .synsh extension
-			tmp.jobName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-			log.Printf("[getJobs::jobName]: " + tmp.jobName)
+			job.jobName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+			log.Printf("[getJobs::jobName]: " + job.jobName)
 
 			// Get file creation time
 			fi, err := os.Stat(path)
@@ -228,12 +227,12 @@ func (m *mainModel) getJobs() tea.Msg {
 			}
 			stat := fi.Sys().(*syscall.Stat_t)
 			ctime := time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
-			tmp.startTime = ctime
+			job.startTime = ctime
 
 			// Get job runtime
-			tmp.runTime = time.Now().Sub(ctime)
+			job.runTime = time.Now().Sub(ctime)
 
-			files = append(files, tmp)
+			files = append(files, job)
 		}
 		return nil
 	})
