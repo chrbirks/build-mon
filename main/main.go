@@ -2,38 +2,39 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
 	"syscall"
 	// "time"
+	"log"
 	"strconv"
 	"time"
-	"log"
 	// "os/exec"
 	// "io/ioutil"
-	"path/filepath"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"path/filepath"
 	// bub "github.com/charmbracelet/bubbles"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
-
 type errMsg error
+
 const useHighPerformanceRenderer = false
 
 // keyMap defines a set of keybindings. To work for help it must satisfy
 // key.Map. It could also very easily be a map[string]key.Binding.
 type keyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Help  key.Binding
-	Quit  key.Binding
+	Up   key.Binding
+	Down key.Binding
+	Help key.Binding
+	Quit key.Binding
 }
+
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
 func (k keyMap) ShortHelp() []key.Binding {
@@ -50,6 +51,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Quit}, // fourth column
 	}
 }
+
 var keys = keyMap{
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
@@ -68,7 +70,6 @@ var keys = keyMap{
 		key.WithHelp("q", "quit"),
 	),
 }
-
 
 func main() {
 	// Log to file if DEBUG
@@ -91,7 +92,7 @@ func main() {
 	// p := tea.NewProgram(m)
 	p := tea.NewProgram(m, tea.WithAltScreen()) // use the full size of the terminal in its "alternate screen buffer"
 	// if model,err := p.Run(); err != nil {
-	if _,err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Printf("Uh oh, there was an error: %v\n", err)
 		log.Fatal(err)
 	}
@@ -104,10 +105,10 @@ func main() {
 }
 
 type SynshFileStruct struct {
-	file string
-	jobName string
+	file      string
+	jobName   string
 	startTime time.Time
-	runTime time.Duration
+	runTime   time.Duration
 }
 
 var (
@@ -125,12 +126,12 @@ var (
 )
 
 type mainModel struct {
-	build_dir_input  textinput.Model
-	build_dir_val string
-	user_input textinput.Model
-	user_val      string
+	build_dir_input textinput.Model
+	build_dir_val   string
+	user_input      textinput.Model
+	user_val        string
 
-	synsh_files []SynshFileStruct
+	synsh_files    []SynshFileStruct
 	build_job_dirs []string
 
 	// cursor int // Selection in table
@@ -141,7 +142,7 @@ type mainModel struct {
 
 	tbl table.Model
 
-	viewport viewport.Model
+	viewport      viewport.Model
 	viewportReady bool
 
 	keys keyMap
@@ -151,7 +152,6 @@ type mainModel struct {
 
 	err error
 }
-
 
 func initialModel() mainModel {
 	build_dir_ti := textinput.New()
@@ -201,12 +201,12 @@ func initialModel() mainModel {
 	t.SetStyles(s)
 
 	return mainModel{
-		build_dir_input:  build_dir_ti,
-		build_dir_val:    build_dir_ti.Placeholder,
-		user_input:       user_ti,
-		user_val:         user_ti.Placeholder,
-		conf_done:        true, // Skipping conf until later version
-		state:            "build_dir",
+		build_dir_input: build_dir_ti,
+		build_dir_val:   build_dir_ti.Placeholder,
+		user_input:      user_ti,
+		user_val:        user_ti.Placeholder,
+		conf_done:       true, // Skipping conf until later version
+		state:           "build_dir",
 
 		// synsh_files:        make(chan SynshFileStruct[string, int]),
 		// cursor:           int,
@@ -217,11 +217,11 @@ func initialModel() mainModel {
 		keys: keys,
 
 		// helpStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")),
-		help:      help.New(),
+		help: help.New(),
 
 		viewportReady: false,
 
-		err:              nil,
+		err: nil,
 	}
 }
 
@@ -229,13 +229,13 @@ func (m *mainModel) getJobs() tea.Msg {
 	var files []SynshFileStruct
 
 	// Find .synsh files and note creation time
-	err := filepath.Walk(m.build_dir_val + "/New_file", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(m.build_dir_val+"/New_file", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Fatal(err)
 			return nil
 		}
 		if !info.IsDir() && filepath.Ext(path) == ".synsh" {
-			job := SynshFileStruct{path, "N/A", time.Unix(0,0), time.Duration(0)}
+			job := SynshFileStruct{path, "N/A", time.Unix(0, 0), time.Duration(0)}
 			job.file = path
 
 			// Create canonicalized job name from .synsh file without the .synsh extension
@@ -268,7 +268,7 @@ func (m *mainModel) getJobs() tea.Msg {
 
 	// Create list of build jobs dirs for each .synsh file
 	var dirs []string
-	for _,strct := range files {
+	for _, strct := range files {
 		// dir := filepath.Join(filepath.Dir(strct.file.(string)), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file.(string)), filepath.Ext(strct.file.(string))))
 		dir := filepath.Join(filepath.Dir(strct.file), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file), filepath.Ext(strct.file)))
 		dirs = append(dirs, dir)
@@ -279,9 +279,9 @@ func (m *mainModel) getJobs() tea.Msg {
 	return m
 }
 
-
 // Init() ///////////////////////////////////////////////////////////////////////
 type tickMsg time.Time
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -337,7 +337,7 @@ func (m mainModel) View() string {
 	return s.String()
 }
 
-var baseStyle = lipgloss.NewStyle().
+var tableStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240"))
 
@@ -354,7 +354,9 @@ func (m mainModel) viewportFooterView() string {
 }
 
 func max(a, b int) int {
-	if a > b {return a}
+	if a > b {
+		return a
+	}
 	return b
 }
 
@@ -371,7 +373,7 @@ func monView(m mainModel) string {
 	// }
 
 	// Render table
-	s.WriteString(baseStyle.Render(m.tbl.View()) + "\n")
+	s.WriteString(tableStyle.Render(m.tbl.View()) + "\n")
 
 	// Render viewport
 	if !m.viewportReady {
@@ -495,7 +497,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		// case key.Matches(msg, m.keys.Help):
 		case "?":
-			m.help.ShowAll = !m.help.ShowAll}
+			m.help.ShowAll = !m.help.ShowAll
+		}
 	case tickMsg:
 		log.Printf("[Update::tickMsg]")
 		// Execute new tickCmd
@@ -505,21 +508,27 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Look for new .synsh files and update table
+	// Look for new .synsh files
 	m.getJobs()
 	log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))
+
+	// Update table
 	s := &strings.Builder{}
 	var eol string
-	for i,f := range m.synsh_files {
+	for i, f := range m.synsh_files {
 		// Terminate each row with newline except for last row
-		if (i==len(m.synsh_files)-1) {eol = ""} else {eol = "\n"}
+		if i == len(m.synsh_files)-1 {
+			eol = ""
+		} else {
+			eol = "\n"
+		}
 		// Add string for each row. Separate columns with tabs. // FIXME: Choose other separator than tab since filename might have tabs(?)
 		s.WriteString(
 			f.jobName + "\t" +
-			f.startTime.Format("2006-01-02 15:04:09") + "\t" +
-			f.runTime.String() +
-			eol)
-			// "\n")
+				f.startTime.Format("2006-01-02 15:04:09") + "\t" +
+				f.runTime.String() +
+				eol)
+		// "\n")
 
 	}
 	m.tbl.FromValues(s.String(), "\t")
