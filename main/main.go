@@ -419,13 +419,18 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.getJobs()
 	log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))
 	s := &strings.Builder{}
-	for _,f := range m.synsh_files {
-		// FIXME: Choose other separator than tab since filename might have tabs(?)
+	var eol string
+	for i,f := range m.synsh_files {
+		// Terminate each row with newline except for last row
+		if (i==len(m.synsh_files)-1) {eol = ""} else {eol = "\n"}
+		// Add string for each row. Separate columns with tabs. // FIXME: Choose other separator than tab since filename might have tabs(?)
 		s.WriteString(
 			f.file + "\t" +
 			f.startTime.Format("2006-01-02 15:04:09") + "\t" +
 			f.runTime.String() +
-			"\n")
+			eol)
+			// "\n")
+
 	}
 	m.tbl.FromValues(s.String(), "\t")
 	m.tbl, cmd = m.tbl.Update(msg)
