@@ -102,7 +102,7 @@ func main() {
 
 type SynshFileStruct struct {
 	file string
-	// startTime int
+	jobName string
 	startTime time.Time
 	runTime time.Duration
 }
@@ -145,8 +145,8 @@ func initialModel() mainModel {
 	user_ti.Focus()
 
 	columns := []table.Column{
-		{Title: "Job", Width: 90},
-		{Title: "Start time", Width: 20},
+		{Title: "Job", Width: 40},
+		{Title: "Start time", Width: 30},
 		{Title: "Run time", Width: 25},
 		// {Title: "Country", Width: 10},
 		// {Title: "Population", Width: 10},
@@ -213,8 +213,13 @@ func (m *mainModel) getJobs() tea.Msg {
 			return nil
 		}
 		if !info.IsDir() && filepath.Ext(path) == ".synsh" {
-			tmp := SynshFileStruct{path, time.Unix(0,0), time.Duration(0)}
+			// TODO: Rename tmp
+			tmp := SynshFileStruct{path, "N/A", time.Unix(0,0), time.Duration(0)}
 			tmp.file = path
+
+			// Create canonicalized job name from .synsh file without the .synsh extension
+			tmp.jobName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+			log.Printf("[getJobs::jobName]: " + tmp.jobName)
 
 			// Get file creation time
 			fi, err := os.Stat(path)
@@ -247,11 +252,9 @@ func (m *mainModel) getJobs() tea.Msg {
 		dir := filepath.Join(filepath.Dir(strct.file), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file), filepath.Ext(strct.file)))
 		dirs = append(dirs, dir)
 	}
-
 	m.build_job_dirs = dirs
 	log.Printf("[getJobs::len(m.build_job_dirs)]: " + strconv.Itoa(len(m.build_job_dirs)))
 
-	// return 0
 	return m
 }
 
@@ -285,7 +288,7 @@ func (m mainModel) View() string {
 
 	// Print help text
 	helpView := m.help.View(m.keys)
-	height := 3 - strings.Count(s.String(), "\n") - strings.Count(helpView, "\n")
+	height := 0 - strings.Count(s.String(), "\n") - strings.Count(helpView, "\n")
 	s.WriteString(strings.Repeat("\n", height))
 	s.WriteString(helpView)
 	s.WriteString("\n")
@@ -425,7 +428,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if (i==len(m.synsh_files)-1) {eol = ""} else {eol = "\n"}
 		// Add string for each row. Separate columns with tabs. // FIXME: Choose other separator than tab since filename might have tabs(?)
 		s.WriteString(
-			f.file + "\t" +
+			f.jobName + "\t" +
 			f.startTime.Format("2006-01-02 15:04:09") + "\t" +
 			f.runTime.String() +
 			eol)
