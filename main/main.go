@@ -3,26 +3,24 @@ package main
 import (
 	"fmt"
 	"strings"
-	// "net/http"
 	"os"
 	"syscall"
 	// "time"
 	"strconv"
 	"time"
+	"log"
 	// "os/exec"
 	// "io/ioutil"
 	"path/filepath"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"log"
+	"github.com/charmbracelet/bubbles/textinput"
 	// bub "github.com/charmbracelet/bubbles"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// const url = "https://charm.sh/"
 
 type errMsg error
 
@@ -44,8 +42,10 @@ func (k keyMap) ShortHelp() []key.Binding {
 // key.Map interface.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down},   // first column
-		{k.Help, k.Quit}, // second column
+		{k.Up},   // first column
+		{k.Down}, // second column
+		{k.Help}, // third column
+		{k.Quit}, // fourth column
 	}
 }
 var keys = keyMap{
@@ -69,6 +69,7 @@ var keys = keyMap{
 
 
 func main() {
+	// Log to file if DEBUG
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -99,10 +100,6 @@ func main() {
 
 }
 
-// type SynshFileStruct struct {
-// 	file, startTime interface{}
-// }
-
 type SynshFileStruct struct {
 	file string
 	// startTime int
@@ -110,20 +107,13 @@ type SynshFileStruct struct {
 	runTime time.Duration
 }
 
-// type SynshFileStruct[T, U any] struct {
-// 	file T
-// 	startTime U
-// }
-
-
 type mainModel struct {
 	build_dir_input  textinput.Model
 	build_dir_val string
 	user_input textinput.Model
 	user_val      string
 
-	synsh_files []string
-	synsh_files2 []SynshFileStruct
+	synsh_files []SynshFileStruct
 	build_job_dirs []string
 
 	// cursor int // Selection in table
@@ -190,8 +180,6 @@ func initialModel() mainModel {
 		Bold(false)
 	t.SetStyles(s)
 
-	// synsh_files2 := make(chan SynshFileStruct[string, int]);
-
 	return mainModel{
 		build_dir_input:  build_dir_ti,
 		build_dir_val:    build_dir_ti.Placeholder,
@@ -200,16 +188,12 @@ func initialModel() mainModel {
 		conf_done:        true, // Skipping conf until later version
 		state:            "build_dir",
 
-		// synsh_files:      []string{"abc", "def"},
-		// synsh_files:      getJobs(),
-		// synsh_files2:        make(chan SynshFileStruct[string, int]),
+		// synsh_files:        make(chan SynshFileStruct[string, int]),
 		// cursor:           int,
 		// selected:         make(map[string]struct{}),
 
 		tbl: t,
 
-		// keys: DefaultKeyMap,
-		// help: help.New(),
 		keys: keys,
 
 		// helpStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")),
@@ -220,10 +204,7 @@ func initialModel() mainModel {
 }
 
 func (m *mainModel) getJobs() tea.Msg {
-	var files []string
-	var files2 []SynshFileStruct
-	// files2 := make(chan []SynshFileStruct[string, int])
-	// fmt.Println("XXX ", f1.file)
+	var files []SynshFileStruct
 
 	// Find .synsh files and note creation time
 	err := filepath.Walk(m.build_dir_val + "/New_file", func(path string, info os.FileInfo, err error) error {
@@ -232,11 +213,6 @@ func (m *mainModel) getJobs() tea.Msg {
 			return nil
 		}
 		if !info.IsDir() && filepath.Ext(path) == ".synsh" {
-			files = append(files, path)
-
-			// tmp := make(chan SynshFileStruct[string, int])
-			// tmp := SynshFileStruct{path, 0}
-			// tmp := new(SynshFileStruct)
 			tmp := SynshFileStruct{path, time.Unix(0,0), time.Duration(0)}
 			tmp.file = path
 
@@ -252,7 +228,7 @@ func (m *mainModel) getJobs() tea.Msg {
 			// Get job runtime
 			tmp.runTime = time.Now().Sub(ctime)
 
-			files2 = append(files2, tmp)
+			files = append(files, tmp)
 		}
 		return nil
 	})
@@ -262,23 +238,11 @@ func (m *mainModel) getJobs() tea.Msg {
 
 	}
 	m.synsh_files = files
-	m.synsh_files2 = files2
-	// log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))
-	log.Printf("[getJobs::len(m.synsh_files2)]: " + strconv.Itoa(len(m.synsh_files2)))
+	log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))
 
 	// Create list of build jobs dirs for each .synsh file
 	var dirs []string
-	// var abs_file string
-
-	// for _,file := range files {
-	// 	// log.Printf("[getJobs::file]:     " + file)
-	// 	// p := filepath.Join(filepath.Dir(file), "/../syntese/", filepath.Base(file))
-	// 	dir := filepath.Join(filepath.Dir(file), "/../syntese/", strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)))
-	// 	// log.Printf("[getJobs::dir]: " + dir)
-	// 	dirs = append(dirs, dir)
-	// }
-
-	for _,strct := range files2 {
+	for _,strct := range files {
 		// dir := filepath.Join(filepath.Dir(strct.file.(string)), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file.(string)), filepath.Ext(strct.file.(string))))
 		dir := filepath.Join(filepath.Dir(strct.file), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file), filepath.Ext(strct.file)))
 		dirs = append(dirs, dir)
@@ -308,7 +272,6 @@ func (m mainModel) Init() tea.Cmd {
 	// // return textInputBlinkCmd
 	// return tea.Batch(textInputBlinkCmd)
 
-
 	// return m.getJobs
 	return tickCmd()
 	// return nil
@@ -330,9 +293,6 @@ func (m mainModel) View() string {
 	// s.WriteString(m.helpStyle.Render("Hello"))
 	// s.WriteString("\n")
 
-	// s.WriteString("Build dir location: (ESC to quit)\n")
-	// s.WriteString(m.build_dir_input.View())
-
 	if m.conf_done == false {
 		// Configure application
 		s.WriteString(argsView(m))
@@ -340,12 +300,8 @@ func (m mainModel) View() string {
 		s.WriteString(monView(m))
 	} else {
 		s.WriteString("Unknown m.state: " + m.state)
-		// return fmt.Sprintf("Text selection: %s", m.val)
-		// s.WriteString(fmt.Sprintf("Text selection: %s", m.build_dir_val))
 	}
 
-
-	// log.Printf(s.String())
 	return s.String()
 }
 
@@ -358,10 +314,9 @@ func monView(m mainModel) string {
 
 	log.Printf("--------monView-----------\n")
 	log.Printf("[monView::m.build_dir_val]  " + m.build_dir_val + "\n")
-	// log.Printf(time.Now().Format(time.RFC850))
 
 	log.Printf("[monView::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))
-	log.Printf("[monView::m.synsh_files]    len=" + strconv.Itoa(len(m.synsh_files)))
+	// log.Printf("[monView::m.synsh_files]    len=" + strconv.Itoa(len(m.synsh_files)))
 	// for _, val := range m.synsh_files {
 	// 	log.Printf("[monView]:" + val)
 	// }
@@ -369,9 +324,7 @@ func monView(m mainModel) string {
 	s.WriteString(baseStyle.Render(m.tbl.View()) + "\n")
 
 	log.Printf("--------------------------\n")
-	// fmt.Println(s.String())
 	return s.String()
-	// return "TODO: Monitor state" + ", " + m.build_dir_val + ", " + m.user_val
 }
 
 func argsView(m mainModel) string {
@@ -383,16 +336,8 @@ func argsView(m mainModel) string {
 		s.WriteString("Build dir location: (ESC to quit)\n")
 		s.WriteString(m.build_dir_input.View())
 	} else if m.state == "build_user" {
-		// return fmt.Sprintf(
-		// 	"Build dir location: (ESC to quit)\n%s\n",
-		// 	m.build_dir_input.View(),
-		// ) + "\n"
 		s.WriteString("Build user: (ESC to quit)\n")
 		s.WriteString(m.user_input.View())
-		// s.WriteString(fmt.Sprintf("args_build_dir=%s", m.build_dir_val))
-		// } else {
-		// 	log.Fatal("FATAL: Unhandled state in argsView")
-		// 	s.WriteString("TODO")
 	}
 
 	return s.String()
@@ -400,7 +345,6 @@ func argsView(m mainModel) string {
 
 // Update() /////////////////////////////////////////////////////////////////////
 
-// func (m mainModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *mainModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -429,21 +373,12 @@ func (m *mainModel) ConfUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// cmds = append(cmds, cmd)
-	// cmds = append(cmds, cmd)
-
-	// log.Printf("ConfUpdate::m.state=%s", m.state)
-	// log.Printf("ConfUpdsate::m.build_dir_input.Value()=%s", m.build_dir_input.Value())
-	// log.Printf("ConfUpdsate::m.user_input.Value()=%s", m.user_input.Value())
-
 	return m, cmd
 }
 
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
-
-	// m.help.ShowAll = !m.help.ShowAll
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -480,31 +415,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// if (m.conf_done == false) {
-	// 	_, cmd = m.ConfUpdate(msg)
-	// 	cmds = append(cmds, cmd)
-	// } else {
-	// 	// m, cmd = MonitorUpdate(msg)
-	// 	// cmds = append(cmds, cmd)
-	// 	log.Printf("[mainModel::conf_done]: true")
-	// 	msg = m.getJobs()
-	// }
-
-	// m.build_dir_input, cmd = m.build_dir_input.Update(msg)
-	// cmds = append(cmds, cmd)
-	// m.user_input, cmd = m.user_input.Update(msg)
-	// cmds = append(cmds, cmd)
-
 	// Look for new .synsh files and update table
 	m.getJobs()
-	// log.Printf("[Update::m.build_dir_val]  " + m.build_dir_val + "\n")
-	// log.Printf("[Update::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))
-	log.Printf("[Update::m.synsh_files]    len=" + strconv.Itoa(len(m.synsh_files)))
-
-	log.Printf("[Update::m.synsh_files2]   len=" + strconv.Itoa(len(m.synsh_files2)))
-	// m.tbl.FromValues(strings.Join(m.synsh_files, "\n"), "\n")
+	log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))
 	s := &strings.Builder{}
-	for _,f := range m.synsh_files2 {
+	for _,f := range m.synsh_files {
 		// FIXME: Choose other separator than tab since filename might have tabs(?)
 		s.WriteString(
 			f.file + "\t" +
@@ -513,115 +428,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"\n")
 	}
 	m.tbl.FromValues(s.String(), "\t")
-
 	m.tbl, cmd = m.tbl.Update(msg)
-	// return m, cmd // FIXME: Delete
 	cmds = append(cmds, cmd)
 
-	// return m, nil
-	// return m, cmd
 	return m, tea.Batch(cmds...)
 }
-
-
-// type model struct {
-// 	status int
-// 	err    error
-// }
-
-// func checkServer() tea.Msg {
-
-// 	// Create an HTTP client and make a GET request.
-// 	c := &http.Client{Timeout: 10 * time.Second}
-// 	res, err := c.Get(url)
-
-// 	if err != nil {
-// 		// There was an error making our request. Wrap the error we received
-// 		// in a message and return it.
-// 		return errMsg{err}
-// 	}
-// 	// We received a response from the server. Return the HTTP status code
-// 	// as a message.
-// 	return statusMsg(res.StatusCode)
-// }
-
-// type zpoolMsg struct {err error}
-// func checkZpool() tea.Msg {
-
-// 	// Create an HTTP client and make a GET request.
-// 	c := exec.Command("vim")
-// 	return tea.ExecProcess(c, func(err error) tea.Msg {
-// 		return zpoolMsg{err}
-// 	})
-// 	// res, err := c.Get(url)
-
-// 	// if err != nil {
-// 	// 	// There was an error making our request. Wrap the error we received
-// 	// 	// in a message and return it.
-// 	// 	return errMsg{err}
-// 	// }
-// 	// We received a response from the server. Return the HTTP status code
-// 	// as a message.
-// 	// return statusMsg(res.StatusCode)
-// }
-
-// type statusMsg int
-
-// type errMsg struct{ err error }
-
-// // For messages that contain errors it's often handy to also implement the
-// // error interface on the message.
-// func (e errMsg) Error() string { return e.err.Error() }
-
-// func (m model) Init() (tea.Cmd) {
-// 	// return checkServer
-// 	return checkZpool
-// }
-
-// func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-// 	switch msg := msg.(type) {
-
-// 	case statusMsg:
-// 		// The server returned a status message. Save it to our model. Also
-// 		// tell the Bubble Tea runtime we want to exit because we have nothing
-// 		// else to do. We'll still be able to render a final view with our
-// 		// status message.
-// 		m.status = int(msg)
-// 		return m, tea.Quit
-
-// 	case errMsg:
-// 		// There was an error. Note it in the model. And tell the runtime
-// 		// we're done and want to quit.
-// 		m.err = msg
-// 		return m, tea.Quit
-
-// 	case tea.KeyMsg:
-// 		// Ctrl+c exits. Even with short running programs it's good to have
-// 		// a quit key, just incase your logic is off. Users will be very
-// 		// annoyed if they can't exit.
-// 		if msg.Type == tea.KeyCtrlC {
-// 			return m, tea.Quit
-// 		}
-// 	}
-
-// 	// If we happen to get any other messages, don't do anything.
-// 	return m, nil
-// }
-
-// func (m model) View() string {
-// 	// If there's an error, print it out and don't do anything else.
-// 	if m.err != nil {
-// 		return fmt.Sprintf("We had some trouble: %v\n", m.err)
-// 	}
-
-// 	// Tell the user we're doing something.
-// 	s := fmt.Sprintf("Checking %s ... ", url)
-
-// 	// When the server responds with a status, add it to the current line.
-// 	if m.status > 0 {
-// 		s += fmt.Sprintf("%d %s!", m.status, http.StatusText(m.status))
-// 	}
-
-// 	// Send off whatever we came up with above for rendering.
-// 	return s + "\n"
-// }
