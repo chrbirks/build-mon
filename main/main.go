@@ -134,13 +134,14 @@ type mainModel struct {
 	synsh_files    []SynshFileStruct
 	build_job_dirs []string
 
+	// selection int // Selection in table
 	// cursor int // Selection in table
 	// selected map[int]struct{} // Which build job is selected
 
 	conf_done bool
 	state     string
 
-	tbl table.Model
+	tbl table.Model // TODO: Disable conflicting keys like j/k also used in viewport
 
 	viewport      viewport.Model
 	viewportReady bool
@@ -209,8 +210,9 @@ func initialModel() mainModel {
 		state:           "build_dir",
 
 		// synsh_files:        make(chan SynshFileStruct[string, int]),
-		// cursor:           int,
+		// cursor:           0,
 		// selected:         make(map[string]struct{}),
+		// selection: 0,
 
 		tbl: t,
 
@@ -447,6 +449,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Resize viewport
 		headerHeight := lipgloss.Height(m.viewportHeaderView())
 		footerHeight := lipgloss.Height(m.viewportFooterView())
+		monViewHeight := 15 // FIXME: Get dynamic hight somehow
 		verticalMarginHeight := headerHeight + footerHeight
 		if !m.viewportReady {
 			// Since this program is using the full size of the viewport we
@@ -454,8 +457,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// we can initialize the viewport. The initial dimensions come in
 			// quickly, though asynchronously, which is why we wait for them
 			// here.
-			// m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
-			m.viewport = viewport.New(msg.Width, 3) // FIXME: Delete
+			m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight-monViewHeight)
 			m.viewport.YPosition = headerHeight
 			m.viewport.HighPerformanceRendering = useHighPerformanceRenderer
 			m.viewportReady = true
@@ -467,7 +469,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.YPosition = headerHeight + 1
 		} else {
 			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - verticalMarginHeight
+			m.viewport.Height = msg.Height - verticalMarginHeight - monViewHeight
 		}
 
 		if useHighPerformanceRenderer {
@@ -535,8 +537,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.tbl, cmd = m.tbl.Update(msg)
 	cmds = append(cmds, cmd)
 
-	// Update viewport contents
-	m.viewport.SetContent(m.tbl.SelectedRow()[0])
+	// Update viewport with contents of logfile of selected job
+	log.Printf("[Update::tbl.Cursor()]: " + strconv.Itoa(m.tbl.Cursor()))
+	// m.viewport.SetContent(m.tbl.SelectedRow()[0])
+	// m.viewport.SetContent(m.synsh_files[m.tbl.Cursor()].file)
+	logfile, err := os.ReadFile(m.synsh_files[m.tbl.Cursor()].file)
+	if err != nil {
+		fmt.Println("Could not load file:", err)
+		os.Exit(1)
+	}
+	m.viewport.SetContent(string(logfile))
 
 	// Handle keyboard and mouse events in the viewport
 	m.viewport, cmd = m.viewport.Update(msg)
