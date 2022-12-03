@@ -242,7 +242,7 @@ func (m *mainModel) getJobs() tea.Msg {
 
 			// Create canonicalized job name from .synsh file without the .synsh extension
 			job.jobName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-			log.Printf("[getJobs::jobName]: " + job.jobName)
+			if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::jobName]: " + job.jobName)}
 
 			// Get file creation time
 			fi, err := os.Stat(path)
@@ -266,7 +266,7 @@ func (m *mainModel) getJobs() tea.Msg {
 
 	}
 	m.synsh_files = files
-	log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))}
 
 	// Create list of build jobs dirs for each .synsh file
 	var dirs []string
@@ -276,7 +276,7 @@ func (m *mainModel) getJobs() tea.Msg {
 		dirs = append(dirs, dir)
 	}
 	m.build_job_dirs = dirs
-	log.Printf("[getJobs::len(m.build_job_dirs)]: " + strconv.Itoa(len(m.build_job_dirs)))
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::len(m.build_job_dirs)]: " + strconv.Itoa(len(m.build_job_dirs)))}
 
 	return m
 }
@@ -307,7 +307,7 @@ func (m mainModel) Init() tea.Cmd {
 func (m mainModel) View() string {
 	s := &strings.Builder{}
 
-	log.Printf("[View::conf_done]: %b", m.conf_done)
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[View::conf_done]: %b", m.conf_done)}
 
 	// Print program header
 	s.WriteString("\n")
@@ -365,10 +365,10 @@ func max(a, b int) int {
 func monView(m mainModel) string {
 	s := &strings.Builder{}
 
-	log.Printf("--------monView-----------\n")
-	log.Printf("[monView::m.build_dir_val]  " + m.build_dir_val + "\n")
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("--------monView-----------\n")}
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[monView::m.build_dir_val]  " + m.build_dir_val + "\n")}
 
-	log.Printf("[monView::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[monView::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))}
 	// log.Printf("[monView::m.synsh_files]    len=" + strconv.Itoa(len(m.synsh_files)))
 	// for _, val := range m.synsh_files {
 	// 	log.Printf("[monView]:" + val)
@@ -383,14 +383,14 @@ func monView(m mainModel) string {
 	}
 	s.WriteString(fmt.Sprintf("%s\n%s\n%s", m.viewportHeaderView(), m.viewport.View(), m.viewportFooterView()))
 
-	log.Printf("--------------------------\n")
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("--------------------------\n")}
 	return s.String()
 }
 
 func argsView(m mainModel) string {
 	s := &strings.Builder{}
 
-	log.Printf("argsView::m.state=%s", m.state)
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("argsView::m.state=%s", m.state)}
 
 	if m.state == "build_dir" {
 		s.WriteString("Build dir location: (ESC to quit)\n")
@@ -502,7 +502,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		}
 	case tickMsg:
-		log.Printf("[Update::tickMsg]")
+		if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::tickMsg]")}
 		// Execute new tickCmd
 		cmds = append(cmds, tickCmd())
 	case errMsg:
@@ -512,7 +512,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Look for new .synsh files
 	m.getJobs()
-	log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))}
 
 	// Update table
 	s := &strings.Builder{}
@@ -538,7 +538,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	// Update viewport with contents of logfile of selected job
-	log.Printf("[Update::tbl.Cursor()]: " + strconv.Itoa(m.tbl.Cursor()))
+	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::tbl.Cursor()]: " + strconv.Itoa(m.tbl.Cursor()))}
 	// m.viewport.SetContent(m.tbl.SelectedRow()[0])
 	// m.viewport.SetContent(m.synsh_files[m.tbl.Cursor()].file)
 	logfile, err := os.ReadFile(m.synsh_files[m.tbl.Cursor()].file)
