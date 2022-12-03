@@ -5,16 +5,12 @@ import (
 	"os"
 	"strings"
 	"syscall"
-	// "time"
 	"log"
 	"strconv"
 	"time"
-	// "os/exec"
-	// "io/ioutil"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"path/filepath"
-	// bub "github.com/charmbracelet/bubbles"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -82,26 +78,13 @@ func main() {
 		defer f.Close()
 	}
 
-	log.Printf("\n\nvvvvvvvvvvv starting vvvvvvvvvvvvvvv\n\n")
-
-	// var m mainModel
-	// m = initialModel()
 	m := initialModel()
 
-	// p := tea.NewProgram(initialModel())
-	// p := tea.NewProgram(m)
 	p := tea.NewProgram(m, tea.WithAltScreen()) // use the full size of the terminal in its "alternate screen buffer"
-	// if model,err := p.Run(); err != nil {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Uh oh, there was an error: %v\n", err)
 		log.Fatal(err)
 	}
-
-	// log.Printf(m.build_dir_input.Value())
-	// // bd = m.getBuildDir()
-	// bd = m.build_dir_val
-	// log.Printf("main::m.val=%s", bd)
-
 }
 
 type SynshFileStruct struct {
@@ -134,10 +117,6 @@ type mainModel struct {
 	synsh_files    []SynshFileStruct
 	build_job_dirs []string
 
-	// selection int // Selection in table
-	// cursor int // Selection in table
-	// selected map[int]struct{} // Which build job is selected
-
 	conf_done bool
 	state     string
 
@@ -169,19 +148,9 @@ func initialModel() mainModel {
 		{Title: "Job", Width: 40},
 		{Title: "Start time", Width: 30},
 		{Title: "Run time", Width: 25},
-		// {Title: "Country", Width: 10},
-		// {Title: "Population", Width: 10},
 	}
 	rows := []table.Row{
 		{"No jobs", ""},
-		// {"1", "Tokyo", "Japan", "37,274,000"},
-		// {"2", "Delhi", "India", "32,065,760"},
-		// {"3", "Shanghai", "China", "28,516,904"},
-		// {"4", "Dhaka", "Bangladesh", "22,478,116"},
-		// {"5", "São Paulo", "Brazil", "22,429,800"},
-		// {"6", "Mexico City", "Mexico", "22,085,140"},
-		// {"7", "Cairo", "Egypt", "21,750,020"},
-		// {"8", "Beijing", "China", "21,333,332"},
 	}
 	t := table.New(
 		table.WithColumns(columns),
@@ -208,11 +177,6 @@ func initialModel() mainModel {
 		user_val:        user_ti.Placeholder,
 		conf_done:       true, // Skipping conf until later version
 		state:           "build_dir",
-
-		// synsh_files:        make(chan SynshFileStruct[string, int]),
-		// cursor:           0,
-		// selected:         make(map[string]struct{}),
-		// selection: 0,
 
 		tbl: t,
 
@@ -242,7 +206,9 @@ func (m *mainModel) getJobs() tea.Msg {
 
 			// Create canonicalized job name from .synsh file without the .synsh extension
 			job.jobName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-			if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::jobName]: " + job.jobName)}
+			if len(os.Getenv("DEBUG")) > 0 {
+				log.Printf("[getJobs::jobName]: " + job.jobName)
+			}
 
 			// Get file creation time
 			fi, err := os.Stat(path)
@@ -266,17 +232,20 @@ func (m *mainModel) getJobs() tea.Msg {
 
 	}
 	m.synsh_files = files
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[getJobs::len(m.synsh_files)]: " + strconv.Itoa(len(m.synsh_files)))
+	}
 
 	// Create list of build jobs dirs for each .synsh file
 	var dirs []string
 	for _, strct := range files {
-		// dir := filepath.Join(filepath.Dir(strct.file.(string)), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file.(string)), filepath.Ext(strct.file.(string))))
 		dir := filepath.Join(filepath.Dir(strct.file), "/../syntese/", strings.TrimSuffix(filepath.Base(strct.file), filepath.Ext(strct.file)))
 		dirs = append(dirs, dir)
 	}
 	m.build_job_dirs = dirs
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[getJobs::len(m.build_job_dirs)]: " + strconv.Itoa(len(m.build_job_dirs)))}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[getJobs::len(m.build_job_dirs)]: " + strconv.Itoa(len(m.build_job_dirs)))
+	}
 
 	return m
 }
@@ -307,7 +276,9 @@ func (m mainModel) Init() tea.Cmd {
 func (m mainModel) View() string {
 	s := &strings.Builder{}
 
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[View::conf_done]: %b", m.conf_done)}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[View::conf_done]: %b", m.conf_done)
+	}
 
 	// Print program header
 	s.WriteString("\n")
@@ -365,14 +336,16 @@ func max(a, b int) int {
 func monView(m mainModel) string {
 	s := &strings.Builder{}
 
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("--------monView-----------\n")}
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[monView::m.build_dir_val]  " + m.build_dir_val + "\n")}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("--------monView-----------\n")
+	}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[monView::m.build_dir_val]  " + m.build_dir_val + "\n")
+	}
 
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[monView::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))}
-	// log.Printf("[monView::m.synsh_files]    len=" + strconv.Itoa(len(m.synsh_files)))
-	// for _, val := range m.synsh_files {
-	// 	log.Printf("[monView]:" + val)
-	// }
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[monView::m.build_job_dirs] len=" + strconv.Itoa(len(m.build_job_dirs)))
+	}
 
 	// Render table
 	s.WriteString(tableStyle.Render(m.tbl.View()) + "\n")
@@ -383,14 +356,18 @@ func monView(m mainModel) string {
 	}
 	s.WriteString(fmt.Sprintf("%s\n%s\n%s", m.viewportHeaderView(), m.viewport.View(), m.viewportFooterView()))
 
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("--------------------------\n")}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("--------------------------\n")
+	}
 	return s.String()
 }
 
 func argsView(m mainModel) string {
 	s := &strings.Builder{}
 
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("argsView::m.state=%s", m.state)}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("argsView::m.state=%s", m.state)
+	}
 
 	if m.state == "build_dir" {
 		s.WriteString("Build dir location: (ESC to quit)\n")
@@ -502,7 +479,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		}
 	case tickMsg:
-		if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::tickMsg]")}
+		if len(os.Getenv("DEBUG")) > 0 {
+			log.Printf("[Update::tickMsg]")
+		}
 		// Execute new tickCmd
 		cmds = append(cmds, tickCmd())
 	case errMsg:
@@ -512,7 +491,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Look for new .synsh files
 	m.getJobs()
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))}
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[Update::m.synsh_files]   len=" + strconv.Itoa(len(m.synsh_files)))
+	}
 
 	// Update table
 	s := &strings.Builder{}
@@ -530,17 +511,15 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				f.startTime.Format("2006-01-02 15:04:09") + "\t" +
 				f.runTime.String() +
 				eol)
-		// "\n")
-
 	}
 	m.tbl.FromValues(s.String(), "\t")
 	m.tbl, cmd = m.tbl.Update(msg)
 	cmds = append(cmds, cmd)
 
 	// Update viewport with contents of logfile of selected job
-	if len(os.Getenv("DEBUG")) > 0 {log.Printf("[Update::tbl.Cursor()]: " + strconv.Itoa(m.tbl.Cursor()))}
-	// m.viewport.SetContent(m.tbl.SelectedRow()[0])
-	// m.viewport.SetContent(m.synsh_files[m.tbl.Cursor()].file)
+	if len(os.Getenv("DEBUG")) > 0 {
+		log.Printf("[Update::tbl.Cursor()]: " + strconv.Itoa(m.tbl.Cursor()))
+	}
 	logfile, err := os.ReadFile(m.synsh_files[m.tbl.Cursor()].file)
 	if err != nil {
 		fmt.Println("Could not load file:", err)
